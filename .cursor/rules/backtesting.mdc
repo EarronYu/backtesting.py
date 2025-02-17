@@ -1,0 +1,8 @@
+---
+description: 指标实现
+globs: 
+---
+
+# Your rule content
+
+策略的指标实现优先使用TA Lib这个库
