@@ -1,6 +1,7 @@
 import ccxt
 import pandas as pd
 import datetime
+import os  # 新增：用于判断 CSV 文件是否存在
 
 def fetch_and_save_klines(symbol, timeframe, limit, filename):
     """
@@ -16,10 +17,6 @@ def fetch_and_save_klines(symbol, timeframe, limit, filename):
     # 创建 Binance USDM 实例
     exchange = ccxt.binanceusdm({
         'enableRateLimit': True,
-        'proxies': {
-            'http': 'http://127.0.0.1:1522',
-            'https': 'http://127.0.0.1:1522',
-        },
     })
     print("开始拉取数据……")
     # 获取最新的 K 线数据
@@ -68,6 +65,23 @@ def fetch_and_save_klines(symbol, timeframe, limit, filename):
     # 删除最后一根K线
     df = df.iloc[:-1]
     # ------END 新增逻辑------
+    
+    # ------【新增追加更新到2000条K线数据池逻辑】------
+    POOL_SIZE = 2000
+    if os.path.exists(filename):
+        try:
+            old_df = pd.read_csv(filename, index_col=0, parse_dates=True)
+        except Exception as e:
+            print("读取现有CSV文件失败，重新创建数据池：", e)
+            old_df = pd.DataFrame()
+        # 合并新数据和旧数据，并去除重复（以时间索引去重）
+        combined_df = pd.concat([old_df, df])
+        combined_df = combined_df[~combined_df.index.duplicated(keep='last')]
+        combined_df.sort_index(inplace=True)
+        if len(combined_df) > POOL_SIZE:
+            combined_df = combined_df.tail(POOL_SIZE)
+        df = combined_df
+    # ------END 追加更新逻辑------
     
     # 保存到 CSV 文件
     df.to_csv(filename)
